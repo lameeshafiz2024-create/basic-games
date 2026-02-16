@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="UTF-8">
+<title>BlockMan</title>
+<style>
+body {
+    margin: 0;
+    background: #1e1e2f;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    height: 100vh;
+    font-family: Arial, sans-serif;
+    color: white;
+}
+canvas {
+    background: #2b2d42;
+    box-shadow: 0 0 40px #000;
+    border-radius: 12px;
+}
+#message {
+    position: absolute;
+    top: 40px;
+    font-size: 28px;
+    font-weight: bold;
+}
+</style>
+</head>
+<body>
+
+<div id="message"></div>
+<canvas id="game" width="600" height="600"></canvas>
+
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+const message = document.getElementById("message");
+
+const tileSize = 40;
+const rows = 15;
+const cols = 15;
+
+let coins = 0;
+let totalCoins = 0;
+let gameOver = false;
+
+// SPEED SETTINGS
+const playerSpeed = 4;   // higher = faster
+const enemySpeed = 12;   // higher = slower
+
+let playerMoveCounter = 0;
+let enemyMoveCounter = 0;
+
+const map = [
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+[1,0,0,0,0,0,1,0,0,0,0,0,0,0,1],
+[1,0,1,1,1,0,1,0,1,1,1,1,1,0,1],
+[1,0,1,0,1,0,0,0,0,0,0,0,1,0,1],
+[1,0,1,0,1,1,1,1,1,1,1,0,1,0,1],
+[1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+[1,1,1,1,1,1,1,0,1,0,1,1,1,0,1],
+[1,0,0,0,0,0,1,0,1,0,0,0,1,0,1],
+[1,0,1,1,1,0,1,0,1,1,1,0,1,0,1],
+[1,0,0,0,1,0,0,0,0,0,1,0,0,0,1],
+[1,0,1,0,1,1,1,1,1,0,1,1,1,0,1],
+[1,0,1,0,0,0,0,0,1,0,0,0,1,0,1],
+[1,0,1,1,1,1,1,0,1,1,1,0,1,0,1],
+[1,0,0,0,0,0,0,0,0,0,1,0,0,0,1],
+[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1],
+];
+
+let player = { x: 1, y: 1 };
+let enemy = { x: 13, y: 13, dx: -1, dy: 0 };
+
+let keys = {};
+
+document.addEventListener("keydown", e => keys[e.key] = true);
+document.addEventListener("keyup", e => keys[e.key] = false);
+
+function drawMap() {
+    totalCoins = 0;
+    for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+
+            if (map[y][x] === 1) {
+                ctx.fillStyle = "#3a86ff";
+                ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+            } else {
+                ctx.fillStyle = "#2ec4b6";
+                ctx.fillRect(x*tileSize, y*tileSize, tileSize, tileSize);
+
+                if (!map[y][x].collected) {
+                    ctx.fillStyle = "#ffd166";
+                    ctx.beginPath();
+                    ctx.arc(
+                        x*tileSize + tileSize/2,
+                        y*tileSize + tileSize/2,
+                        6, 0, Math.PI*2
+                    );
+                    ctx.fill();
+                    totalCoins++;
+                }
+            }
+        }
+    }
+}
+
+function drawPlayer() {
+    ctx.fillStyle = "#ff006e";
+    ctx.fillRect(player.x*tileSize+8, player.y*tileSize+8, 24, 24);
+}
+
+function drawEnemy() {
+    ctx.fillStyle = "#fb5607";
+    ctx.fillRect(enemy.x*tileSize+8, enemy.y*tileSize+8, 24, 24);
+}
+
+function updatePlayer() {
+    if (gameOver) return;
+
+    playerMoveCounter++;
+    if (playerMoveCounter < playerSpeed) return;
+    playerMoveCounter = 0;
+
+    let dx = 0, dy = 0;
+
+    if (keys["ArrowUp"]) dy = -1;
+    if (keys["ArrowDown"]) dy = 1;
+    if (keys["ArrowLeft"]) dx = -1;
+    if (keys["ArrowRight"]) dx = 1;
+
+    let newX = player.x + dx;
+    let newY = player.y + dy;
+
+    if (map[newY] && map[newY][newX] === 0) {
+        player.x = newX;
+        player.y = newY;
+
+        if (!map[newY][newX].collected) {
+            map[newY][newX].collected = true;
+            coins++;
+        }
+    }
+}
+
+function updateEnemy() {
+    if (gameOver) return;
+
+    enemyMoveCounter++;
+    if (enemyMoveCounter < enemySpeed) return;
+    enemyMoveCounter = 0;
+
+    let newX = enemy.x + enemy.dx;
+    let newY = enemy.y + enemy.dy;
+
+    if (map[newY][newX] === 1) {
+        const directions = [
+            {dx:1,dy:0},
+            {dx:-1,dy:0},
+            {dx:0,dy:1},
+            {dx:0,dy:-1}
+        ];
+        let dir = directions[Math.floor(Math.random()*4)];
+        enemy.dx = dir.dx;
+        enemy.dy = dir.dy;
+    } else {
+        enemy.x = newX;
+        enemy.y = newY;
+    }
+}
+
+function checkCollision() {
+    if (player.x === enemy.x && player.y === enemy.y) {
+        gameOver = true;
+        message.innerText = "💀 Game Over!";
+    }
+
+    if (coins >= totalCoins - 1) {
+        gameOver = true;
+        message.innerText = "🎉 You Win!";
+    }
+}
+
+function gameLoop() {
+    ctx.clearRect(0,0,canvas.width,canvas.height);
+    drawMap();
+    drawPlayer();
+    drawEnemy();
+    updatePlayer();
+    updateEnemy();
+    checkCollision();
+    requestAnimationFrame(gameLoop);
+}
+
+gameLoop();
+</script>
+
+</body>
+</html>
+
